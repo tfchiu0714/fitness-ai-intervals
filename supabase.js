@@ -60,7 +60,7 @@ async function sbLoadAll(){
   try{await sbLoadAICoach()}catch(e){}
   try{await sbLoadAPISettings()}catch(e){}
   try{await sbLoadIntervalsSettings()}catch(e){}
-  try{await sbLoadIntervalsActivities()}catch(e){}
+  try{await sbLoadIntervalsActivities()}catch(e){console.error("Load intervals activities failed:",e)}
   try{await sbLoadRoutines()}catch(e){}
   SB_READY=true;
 }
