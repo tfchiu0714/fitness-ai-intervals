@@ -238,13 +238,19 @@ async function sbSyncIntervals(){
   var oldest=sixMonthsAgo.toISOString().substring(0,10);
   var newest=new Date().toISOString().substring(0,10);
   var athleteId=_cache.intervalsAthleteId;
-  var allActs=[];
+  var allActs=[],page=0,pageSize=100,hasMore=true;
   try{
-    var resp=await fetch("https://intervals.icu/api/v1/athlete/"+athleteId+"/activities?oldest="+oldest+"&newest="+newest,{
-      headers:{"Authorization":"Basic "+btoa("API_KEY:"+_cache.intervalsApiKey),"Accept":"application/json"}
-    });
-    if(!resp.ok){var txt=await resp.text();throw new Error("Intervals.icu API error "+resp.status+": "+txt.substring(0,200))}
-    allActs=await resp.json();
+    while(hasMore){
+      var url="https://intervals.icu/api/v1/athlete/"+athleteId+"/activities?oldest="+oldest+"&newest="+newest+"&limit="+pageSize+"&offset="+(page*pageSize);
+      var resp=await fetch(url,{
+        headers:{"Authorization":"Basic "+btoa("API_KEY:"+_cache.intervalsApiKey),"Accept":"application/json"}
+      });
+      if(!resp.ok){var txt=await resp.text();throw new Error("Intervals.icu API error "+resp.status+": "+txt.substring(0,200))}
+      var acts=await resp.json();
+      if(!acts||!acts.length){hasMore=false;break}
+      allActs=allActs.concat(acts);
+      if(acts.length<pageSize)hasMore=false;else page++
+    }
   }catch(e){alert("Intervals.icu sync failed: "+e.message);return 0}
   if(!allActs||!allActs.length)return 0;
   // Map to app format
