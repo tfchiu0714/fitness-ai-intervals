@@ -263,7 +263,7 @@ async function sbSyncIntervals(){
       var acts=await resp.json();
       if(acts&&acts.length)allActs=allActs.concat(acts);
     }
-  }catch(e){alert("Intervals.icu sync failed: "+e.message);return 0}
+  }catch(e){alert("Intervals.icu sync failed: "+e.message+"\nURL: "+(typeof url!=="undefined"?url:"(before fetch)"));return 0}
   if(!allActs||!allActs.length){alert("No new activities to sync.");return 0}
   // Map to app format
   var mapped=allActs.map(function(a){
