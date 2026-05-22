@@ -63,7 +63,6 @@ async function sbLoadAll(){
   try{await sbLoadIntervalsActivities()}catch(e){}
   try{await sbLoadRoutines()}catch(e){}
   SB_READY=true;
-  if(sbIntervalsConnected()){setTimeout(function(){sbSyncIntervals().then(function(n){if(n>0)location.reload()}).catch(function(){})},800)}
 }
 
 async function sbLoadRaces(){
@@ -336,8 +335,6 @@ async function sbLoadIntervalsActivities(){
     }
   }catch(e){}
   if(allActs.length>0){window.A=allActs}
-  // If nothing in cache but we have intervals connected, auto-sync in background
-  if(allActs.length===0&&sbIntervalsConnected()){setTimeout(function(){sbSyncIntervals().then(function(n){if(n>0)location.reload()}).catch(function(){})},500)}
 }
 
 // ----- Routine Trainings -----
