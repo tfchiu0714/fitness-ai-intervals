@@ -63,7 +63,7 @@ async function sbLoadAll(){
   try{await sbLoadIntervalsActivities()}catch(e){}
   try{await sbLoadRoutines()}catch(e){}
   SB_READY=true;
-  if(sbIntervalsConnected()){setTimeout(function(){sbSyncIntervals().then(function(n){if(n>0&&typeof init==="function")init()}).catch(function(){})},800)}
+  if(sbIntervalsConnected()){setTimeout(function(){sbSyncIntervals().then(function(n){if(n>0)location.reload()}).catch(function(){})},800)}
 }
 
 async function sbLoadRaces(){
