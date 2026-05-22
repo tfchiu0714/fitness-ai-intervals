@@ -237,11 +237,22 @@ async function sbSyncIntervals(){
   var athleteId=_cache.intervalsAthleteId;
   var allActs=[];
   try{
-    // Fetch in 30-day chunks to avoid hitting any API result limits
+    // Find newest activity date already in DB
+    var newestInDB=null;
+    if(SB_USER&&sb){
+      var r=await sb.from("intervals_activities").select("start_date").eq("user_id",SB_USER.id).order("start_date",{ascending:false}).limit(1).maybeSingle();
+      if(r.data&&r.data.start_date)newestInDB=new Date(r.data.start_date);
+    }
+    // If no existing data, do full 180-day sync
+    if(!newestInDB){newestInDB=new Date();newestInDB.setDate(newestInDB.getDate()-180)}
+    // Fetch only newer activities in 30-day chunks
     var now2=new Date();
-    for(var chunk=0;chunk<6;chunk++){
+    var daysToSync=Math.ceil((now2-newestInDB)/86400000)+1;
+    var chunks=Math.ceil(daysToSync/30);
+    for(var chunk=0;chunk<chunks;chunk++){
       var chunkEnd=new Date(now2);chunkEnd.setDate(chunkEnd.getDate()-(chunk*30));
       var chunkStart=new Date(chunkEnd);chunkStart.setDate(chunkStart.getDate()-30);
+      if(chunkStart<newestInDB)chunkStart=newestInDB;
       var oldest=chunkStart.toISOString().substring(0,10);
       var newest=chunkEnd.toISOString().substring(0,10);
       var url="https://intervals.icu/api/v1/athlete/"+athleteId+"/activities?oldest="+oldest+"&newest="+newest;
@@ -253,7 +264,7 @@ async function sbSyncIntervals(){
       if(acts&&acts.length)allActs=allActs.concat(acts);
     }
   }catch(e){alert("Intervals.icu sync failed: "+e.message);return 0}
-  if(!allActs||!allActs.length)return 0;
+  if(!allActs||!allActs.length){alert("No new activities to sync.");return 0}
   // Map to app format
   var mapped=allActs.map(function(a){
     var t=a.type||"Workout";
