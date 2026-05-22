@@ -63,6 +63,7 @@ async function sbLoadAll(){
   try{await sbLoadIntervalsActivities()}catch(e){}
   try{await sbLoadRoutines()}catch(e){}
   SB_READY=true;
+  if(sbIntervalsConnected()){setTimeout(function(){sbSyncIntervals().then(function(n){if(n>0&&typeof init==="function")init()}).catch(function(){})},800)}
 }
 
 async function sbLoadRaces(){
@@ -199,22 +200,36 @@ function sbCheckSession(){
 function sbIntervalsConnected(){return !!(SB_USER&&_cache.intervalsApiKey&&_cache.intervalsAthleteId)}
 
 async function sbLoadIntervalsSettings(){
+  // Try localStorage first (instant)
+  try{
+    var lk=localStorage.getItem("ii_api_key");
+    var la=localStorage.getItem("ii_athlete_id");
+    if(lk&&la){_cache.intervalsApiKey=lk;_cache.intervalsAthleteId=la}
+  }catch(e){}
+  // Then try Supabase
   if(!SB_USER||!sb)return;
-  var r=await sb.from("intervals_settings").select("api_key,athlete_id,athlete_name").eq("user_id",SB_USER.id).maybeSingle();
-  if(r.data&&r.data.api_key){
-    _cache.intervalsApiKey=r.data.api_key;
-    _cache.intervalsAthleteId=r.data.athlete_id;
-    _cache.intervalsAthleteName=r.data.athlete_name||"";
-  }
+  try{
+    var r=await sb.from("intervals_settings").select("api_key,athlete_id,athlete_name").eq("user_id",SB_USER.id).maybeSingle();
+    if(r.data&&r.data.api_key){
+      _cache.intervalsApiKey=r.data.api_key;
+      _cache.intervalsAthleteId=r.data.athlete_id;
+      _cache.intervalsAthleteName=r.data.athlete_name||"";
+      // Sync localStorage with Supabase
+      try{localStorage.setItem("ii_api_key",r.data.api_key);localStorage.setItem("ii_athlete_id",r.data.athlete_id)}catch(e){}
+    }
+  }catch(e){}
 }
 
 async function sbSaveIntervalsSettings(apiKey,athleteId){
   _cache.intervalsApiKey=apiKey;
   _cache.intervalsAthleteId=athleteId;
+  // Always save to localStorage as fallback
+  try{localStorage.setItem("ii_api_key",apiKey);localStorage.setItem("ii_athlete_id",athleteId)}catch(e){}
   if(!SB_USER||!sb)return;
   try{
-    await sb.from("intervals_settings").upsert({user_id:SB_USER.id,api_key:apiKey,athlete_id:athleteId,updated_at:new Date().toISOString()},{onConflict:"user_id"});
-  }catch(e){}
+    var r=await sb.from("intervals_settings").upsert({user_id:SB_USER.id,api_key:apiKey,athlete_id:athleteId,updated_at:new Date().toISOString()},{onConflict:"user_id"});
+    if(r.error)throw new Error(r.error.message);
+  }catch(e){alert("Failed to save Intervals.icu settings: "+e.message)}
 }
 
 async function sbSyncIntervals(){
@@ -293,14 +308,18 @@ async function sbLoadIntervalsActivities(){
   var cutoff=sixMo.toISOString();
   var allActs=[];
   var from=0,limit=1000;
-  while(true){
-    var r=await sb.from("intervals_activities").select("data").eq("user_id",SB_USER.id).gte("start_date",cutoff).order("start_date",{ascending:false}).range(from,from+limit-1);
-    if(!r.data||!r.data.length)break;
-    for(var i=0;i<r.data.length;i++)allActs.push(r.data[i].data);
-    if(r.data.length<limit)break;
-    from+=limit
-  }
+  try{
+    while(true){
+      var r=await sb.from("intervals_activities").select("data").eq("user_id",SB_USER.id).gte("start_date",cutoff).order("start_date",{ascending:false}).range(from,from+limit-1);
+      if(!r.data||!r.data.length)break;
+      for(var i=0;i<r.data.length;i++)allActs.push(r.data[i].data);
+      if(r.data.length<limit)break;
+      from+=limit
+    }
+  }catch(e){}
   if(allActs.length>0){window.A=allActs}
+  // If nothing in cache but we have intervals connected, auto-sync in background
+  if(allActs.length===0&&sbIntervalsConnected()){setTimeout(function(){sbSyncIntervals().then(function(n){if(n>0)location.reload()}).catch(function(){})},500)}
 }
 
 // ----- Routine Trainings -----
